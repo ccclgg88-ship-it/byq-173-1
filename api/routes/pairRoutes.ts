@@ -61,12 +61,12 @@ router.get('/tasks/:taskId', (req, res) => {
 });
 
 router.post('/join', (req, res) => {
-  const { taskId, nickname, avatar } = req.body;
+  const { taskId, nickname, avatar, userId } = req.body;
   if (!taskId || !nickname) {
     return res.status(400).json({ error: 'taskId and nickname are required' });
   }
   try {
-    const result = joinPairTask(taskId, nickname, avatar);
+    const result = joinPairTask(taskId, nickname, avatar, userId);
     res.json(result);
   } catch (e: any) {
     const statusMap: Record<string, number> = {
@@ -74,7 +74,8 @@ router.post('/join', (req, res) => {
       TASK_EXPIRED: 410,
       TASK_ALREADY_JOINED: 409,
       CANNOT_JOIN_OWN_TASK: 400,
-      ACTIVE_TASK_EXISTS: 409
+      ACTIVE_TASK_EXISTS: 409,
+      USER_NOT_FOUND: 404
     };
     res.status(statusMap[e.message] || 500).json({ error: e.message });
   }

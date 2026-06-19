@@ -74,10 +74,10 @@ export const pairApi = {
     request<PairTaskDetail>(
       `/pair/tasks/${taskId}${userId ? `?userId=${encodeURIComponent(userId)}` : ''}`
     ),
-  join: (taskId: string, nickname: string, avatar?: string) =>
-    request<{ taskId: string; status: string; partnerId: string }>('/pair/join', {
+  join: (taskId: string, nickname: string, avatar?: string, userId?: string) =>
+    request<{ taskId: string; status: string; partnerId: string; isNewUser: boolean }>('/pair/join', {
       method: 'POST',
-      body: JSON.stringify({ taskId, nickname, avatar })
+      body: JSON.stringify({ taskId, nickname, avatar, userId })
     }),
   consent: (taskId: string, userId: string) =>
     request<{ taskId: string; bothConsented: boolean }>(`/pair/tasks/${taskId}/consent`, {

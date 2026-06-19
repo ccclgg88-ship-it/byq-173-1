@@ -1,19 +1,22 @@
 import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { pairApi } from '@/api/client';
+import { useAppStore } from '@/store/useAppStore';
 import type { PairTaskDetail } from '../../shared/types';
-import { User as UserIcon, ArrowRight, Heart, Loader2 } from 'lucide-react';
+import { User as UserIcon, ArrowRight, Heart, Loader2, Check } from 'lucide-react';
 
 const AVATAR_OPTIONS = ['🦊', '🐼', '🦁', '🐯', '🐸', '🐵', '🦄', '🐙', '🦋', '🌸'];
 
 export default function PairJoin() {
   const { taskId } = useParams<{ taskId: string }>();
   const navigate = useNavigate();
+  const { currentUser, setCurrentUser } = useAppStore();
 
   const [task, setTask] = useState<PairTaskDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [nickname, setNickname] = useState('');
   const [selectedAvatar, setSelectedAvatar] = useState<string | null>(null);
+  const [useExistingIdentity, setUseExistingIdentity] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
 
@@ -35,6 +38,14 @@ export default function PairJoin() {
     loadTask();
   }, [taskId]);
 
+  useEffect(() => {
+    if (currentUser) {
+      setUseExistingIdentity(true);
+      setNickname(currentUser.nickname);
+      setSelectedAvatar(currentUser.avatar || null);
+    }
+  }, [currentUser]);
+
   const handleSubmit = async () => {
     if (!taskId || !nickname.trim()) {
       setError('请输入昵称');
@@ -45,7 +56,30 @@ export default function PairJoin() {
     setError('');
 
     try {
-      await pairApi.join(taskId, nickname.trim(), selectedAvatar || undefined);
+      const userId = useExistingIdentity && currentUser ? currentUser.id : undefined;
+      const result = await pairApi.join(
+        taskId,
+        nickname.trim(),
+        selectedAvatar || undefined,
+        userId
+      );
+
+      if (useExistingIdentity && currentUser) {
+        setCurrentUser({
+          ...currentUser,
+          nickname: nickname.trim(),
+          avatar: selectedAvatar || currentUser.avatar
+        });
+      } else if (result.isNewUser) {
+        const newUser = {
+          id: result.partnerId,
+          nickname: nickname.trim(),
+          avatar: selectedAvatar || '',
+          createdAt: new Date().toISOString()
+        };
+        setCurrentUser(newUser);
+      }
+
       navigate(`/pair/result/${taskId}`);
     } catch (err) {
       const message = err instanceof Error ? err.message : '加入失败，请重试';
@@ -103,9 +137,37 @@ export default function PairJoin() {
           </div>
         </div>
 
+        {currentUser && (
+          <div className="glass-card p-4">
+            <button
+              onClick={() => setUseExistingIdentity(!useExistingIdentity)}
+              className="w-full flex items-center gap-3"
+            >
+              <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center transition-all ${
+                useExistingIdentity
+                  ? 'bg-gradient-to-br from-indigo-500 to-pink-500 border-transparent'
+                  : 'border-white/30'
+              }`}>
+                {useExistingIdentity && <Check className="w-4 h-4 text-white" />}
+              </div>
+              <div className="flex items-center gap-3 flex-1">
+                <div className="w-10 h-10 rounded-full bg-gradient-to-br from-indigo-500 to-pink-500 flex items-center justify-center text-lg">
+                  {currentUser.avatar}
+                </div>
+                <div className="text-left">
+                  <p className="font-medium text-sm">{currentUser.nickname}</p>
+                  <p className="text-xs text-white/50">使用我的现有身份</p>
+                </div>
+              </div>
+            </button>
+          </div>
+        )}
+
         <div className="glass-card p-6 space-y-6">
           <div className="space-y-2">
-            <label className="text-sm font-medium text-white/80">你的昵称</label>
+            <label className="text-sm font-medium text-white/80">
+              {useExistingIdentity ? '我的昵称' : '你的昵称'}
+            </label>
             <input
               type="text"
               value={nickname}
@@ -151,7 +213,7 @@ export default function PairJoin() {
               </>
             ) : (
               <>
-                <span>加入合拍</span>
+                <span>{useExistingIdentity ? '使用此身份加入' : '加入合拍'}</span>
                 <ArrowRight className="w-5 h-5" />
               </>
             )}

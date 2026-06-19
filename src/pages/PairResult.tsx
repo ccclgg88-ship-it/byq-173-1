@@ -3,6 +3,7 @@ import { useParams } from 'react-router-dom';
 import { pairApi, shareApi } from '@/api/client';
 import { useAppStore } from '@/store/useAppStore';
 import type { PairTaskDetail } from '../../shared/types';
+import html2canvas from 'html2canvas';
 import {
   Loader2,
   Check,
@@ -198,12 +199,27 @@ export default function PairResult() {
     }
   };
 
-  const handleDownloadPoster = () => {
-    if (!posterData?.qrCodeDataUrl) return;
-    const link = document.createElement('a');
-    link.download = `pair-report-${taskId}.png`;
-    link.href = posterData.qrCodeDataUrl;
-    link.click();
+  const [savingPoster, setSavingPoster] = useState(false);
+
+  const handleDownloadPoster = async () => {
+    if (!posterRef.current) return;
+    setSavingPoster(true);
+    try {
+      const canvas = await html2canvas(posterRef.current, {
+        backgroundColor: null,
+        scale: 2,
+        useCORS: true,
+        logging: false
+      });
+      const link = document.createElement('a');
+      link.download = `pair-report-${taskId}.png`;
+      link.href = canvas.toDataURL('image/png');
+      link.click();
+    } catch (err) {
+      console.error('保存海报失败:', err);
+    } finally {
+      setSavingPoster(false);
+    }
   };
 
   if (loading || !task) {
@@ -430,9 +446,17 @@ export default function PairResult() {
               <button onClick={() => setShowPoster(false)} className="flex-1 py-3 rounded-2xl font-semibold bg-white/10 hover:bg-white/15 transition-colors">
                 关闭
               </button>
-              <button onClick={handleDownloadPoster} className="flex-1 py-3 rounded-2xl font-bold bg-gradient-to-r from-indigo-500 to-pink-500 flex items-center justify-center gap-2">
-                <Download className="w-4 h-4" />
-                保存
+              <button
+                onClick={handleDownloadPoster}
+                disabled={savingPoster}
+                className="flex-1 py-3 rounded-2xl font-bold bg-gradient-to-r from-indigo-500 to-pink-500 flex items-center justify-center gap-2 disabled:opacity-70"
+              >
+                {savingPoster ? (
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                ) : (
+                  <Download className="w-4 h-4" />
+                )}
+                {savingPoster ? '保存中...' : '保存到相册'}
               </button>
             </div>
           </div>

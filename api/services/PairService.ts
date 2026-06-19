@@ -121,8 +121,9 @@ export function getPairTask(taskId: string, _userId?: string): PairTaskDetail | 
 export function joinPairTask(
   taskId: string,
   nickname: string,
-  avatar?: string
-): { taskId: string; status: PairStatus; partnerId: string } {
+  avatar?: string,
+  existingUserId?: string
+): { taskId: string; status: PairStatus; partnerId: string; isNewUser: boolean } {
   const task = db.prepare('SELECT * FROM pair_tasks WHERE id = ?').get(taskId) as any;
   if (!task) throw new Error('TASK_NOT_FOUND');
 
@@ -131,7 +132,24 @@ export function joinPairTask(
   if (freshTask.status === 'EXPIRED') throw new Error('TASK_EXPIRED');
   if (freshTask.status !== 'WAITING_PARTNER') throw new Error('TASK_ALREADY_JOINED');
 
-  const partner = createUser(nickname, avatar);
+  let partner: { id: string; nickname: string; avatar: string };
+  let isNewUser = false;
+
+  if (existingUserId) {
+    const existingUser = getUser(existingUserId);
+    if (!existingUser) {
+      throw new Error('USER_NOT_FOUND');
+    }
+    partner = existingUser;
+    if (nickname && nickname !== existingUser.nickname) {
+      db.prepare('UPDATE users SET nickname = ?, avatar = ? WHERE id = ?')
+        .run(nickname, avatar || existingUser.avatar, existingUserId);
+      partner = { ...partner, nickname, avatar: avatar || partner.avatar };
+    }
+  } else {
+    partner = createUser(nickname, avatar);
+    isNewUser = true;
+  }
 
   if (freshTask.inviter_id === partner.id) {
     throw new Error('CANNOT_JOIN_OWN_TASK');
@@ -163,7 +181,7 @@ export function joinPairTask(
     });
   }, 500);
 
-  return { taskId, status: 'GENERATING', partnerId: partner.id };
+  return { taskId, status: 'GENERATING' as PairStatus, partnerId: partner.id, isNewUser };
 }
 
 export function generateFinalReport(taskId: string): void {

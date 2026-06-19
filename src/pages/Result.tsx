@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import {
   Copy,
@@ -7,8 +7,11 @@ import {
   RefreshCw,
   Home,
   Share2,
-  Loader2
+  Loader2,
+  Sparkles,
+  Download
 } from 'lucide-react';
+import html2canvas from 'html2canvas';
 import { assessmentApi, shareApi, pairApi } from '@/api/client';
 import { useAppStore } from '@/store/useAppStore';
 import type { PersonaResult, ShareGenerateResult } from '../../shared/types';
@@ -25,6 +28,8 @@ export default function Result() {
   const [generatingShare, setGeneratingShare] = useState(false);
   const [inviting, setInviting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const posterRef = useRef<HTMLDivElement>(null);
+  const [savingPoster, setSavingPoster] = useState(false);
 
   const loadAssessment = useCallback(async () => {
     if (!id) return;
@@ -101,6 +106,27 @@ export default function Result() {
     }
   };
 
+  const handleSavePoster = async () => {
+    if (!posterRef.current) return;
+    setSavingPoster(true);
+    try {
+      const canvas = await html2canvas(posterRef.current, {
+        backgroundColor: null,
+        scale: 2,
+        useCORS: true,
+        logging: false
+      });
+      const link = document.createElement('a');
+      link.download = `persona-${assessment?.title || 'result'}.png`;
+      link.href = canvas.toDataURL('image/png');
+      link.click();
+    } catch (err) {
+      console.error('保存海报失败:', err);
+    } finally {
+      setSavingPoster(false);
+    }
+  };
+
   const handleRetry = () => {
     navigate('/quiz');
   };
@@ -172,7 +198,7 @@ export default function Result() {
       <div className="glass-card p-6 mb-6">
         <div className="flex items-center gap-2 mb-5">
           <Share2 className="w-5 h-5 text-pink-400" />
-          <h3 className="font-bold text-white text-lg">分享给朋友</h3>
+          <h3 className="font-bold text-white text-lg">分享海报</h3>
         </div>
 
         {generatingShare || !shareData ? (
@@ -182,15 +208,86 @@ export default function Result() {
           </div>
         ) : (
           <div className="flex flex-col items-center">
-            <div className="bg-white p-4 rounded-2xl mb-5">
-              <img
-                src={shareData.qrCodeDataUrl}
-                alt="分享二维码"
-                className="w-44 h-44"
-              />
+            <div
+              ref={posterRef}
+              className="relative w-full max-w-xs overflow-hidden"
+              style={{
+                background: 'linear-gradient(160deg, #312e81 0%, #581c87 50%, #be185d 100%)',
+                borderRadius: '20px',
+                padding: '24px'
+              }}
+            >
+              <div className="flex items-center justify-between mb-5">
+                <div className="flex items-center gap-2">
+                  <div className="w-8 h-8 rounded-full bg-gradient-to-br from-yellow-400 to-pink-500 flex items-center justify-center">
+                    <Sparkles className="w-4 h-4 text-white" />
+                  </div>
+                  <span className="font-bold text-white/90 text-sm">人设实验室</span>
+                </div>
+                <span className="text-xs text-white/40">PERSONA LAB</span>
+              </div>
+
+              <div className="text-center mb-5">
+                <div className="w-16 h-16 mx-auto mb-3 rounded-full bg-gradient-to-br from-indigo-400 to-pink-400 flex items-center justify-center text-3xl overflow-hidden">
+                  {currentUser?.avatar}
+                </div>
+                <p className="text-white/80 text-sm mb-1">{currentUser?.nickname}</p>
+                <p className="text-white/40 text-xs">的专属人设</p>
+              </div>
+
+              <div
+                className="text-center mb-5 py-5 px-4 rounded-2xl"
+                style={{ background: 'rgba(255,255,255,0.08)', backdropFilter: 'blur(10px)' }}
+              >
+                <p
+                  className="font-display font-bold text-2xl mb-3"
+                  style={{
+                    background: 'linear-gradient(135deg, #fbbf24 0%, #f472b6 50%, #a78bfa 100%)',
+                    WebkitBackgroundClip: 'text',
+                    WebkitTextFillColor: 'transparent',
+                    backgroundClip: 'text'
+                  }}
+                >
+                  {assessment?.title}
+                </p>
+                <div className="flex flex-wrap justify-center gap-1.5">
+                  {assessment?.tags.slice(0, 3).map((tag, i) => (
+                    <span
+                      key={i}
+                      className="text-xs px-2.5 py-1 rounded-full"
+                      style={{
+                        background: 'rgba(255,255,255,0.12)',
+                        color: 'rgba(255,255,255,0.8)'
+                      }}
+                    >
+                      {tag}
+                    </span>
+                  ))}
+                </div>
+              </div>
+
+              <div className="flex items-center justify-center gap-3 mb-5">
+                <div className="flex-1 h-px bg-white/10"></div>
+                <span className="text-xs text-white/30">扫码测一测</span>
+                <div className="flex-1 h-px bg-white/10"></div>
+              </div>
+
+              <div className="flex justify-center">
+                <div className="bg-white p-3 rounded-xl shadow-lg">
+                  <img
+                    src={shareData.qrCodeDataUrl}
+                    alt="分享二维码"
+                    className="w-28 h-28"
+                  />
+                </div>
+              </div>
+
+              <p className="text-center text-white/30 text-xs mt-4">
+                长按识别二维码 · 发现你的专属人设
+              </p>
             </div>
 
-            <div className="w-full bg-white/5 rounded-2xl p-4 mb-5 border border-white/10">
+            <div className="w-full bg-white/5 rounded-2xl p-4 mt-5 border border-white/10">
               <p className="text-white/50 text-xs mb-2">分享链接</p>
               <div className="flex items-center gap-2">
                 <p className="text-white/80 text-sm flex-1 truncate">
@@ -208,6 +305,19 @@ export default function Result() {
                 </button>
               </div>
             </div>
+
+            <button
+              onClick={handleSavePoster}
+              disabled={savingPoster}
+              className="btn-secondary w-full mt-4 flex items-center justify-center gap-2"
+            >
+              {savingPoster ? (
+                <Loader2 className="w-4 h-4 animate-spin" />
+              ) : (
+                <Download className="w-4 h-4" />
+              )}
+              保存海报到相册
+            </button>
           </div>
         )}
       </div>
