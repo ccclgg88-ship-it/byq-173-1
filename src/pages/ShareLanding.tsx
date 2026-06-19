@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { useAppStore } from '@/store/useAppStore';
 import { assessmentApi, userApi } from '@/api/client';
 import type { PersonaResult, User } from '../../shared/types';
+import { THEMES } from '../../shared/types';
 import { Sparkles, ArrowRight, User as UserIcon } from 'lucide-react';
 
 export default function ShareLanding() {
@@ -10,6 +11,7 @@ export default function ShareLanding() {
   const navigate = useNavigate();
   const setSharerInfo = useAppStore((s) => s.setSharerInfo);
   const clearAll = useAppStore((s) => s.clearAll);
+  const currentUser = useAppStore((s) => s.currentUser);
 
   const [sharer, setSharer] = useState<User | null>(null);
   const [assessment, setAssessment] = useState<PersonaResult | null>(null);
@@ -48,6 +50,19 @@ export default function ShareLanding() {
       setSharerInfo({ sharerId, assessmentId });
     }
     navigate('/');
+  };
+
+  const handleSameTheme = () => {
+    if (!assessment) return;
+    clearAll();
+    if (sharerId && assessmentId) {
+      setSharerInfo({ sharerId, assessmentId });
+    }
+    if (currentUser) {
+      navigate(`/quiz?theme=${assessment.theme}`);
+    } else {
+      navigate(`/?redirect=quiz&theme=${assessment.theme}`);
+    }
   };
 
   if (loading) {
@@ -90,6 +105,13 @@ export default function ShareLanding() {
 
         {assessment && (
           <div className="glass-card p-6 space-y-4">
+            <div className="flex justify-center">
+              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium bg-white/10 text-white/70">
+                <span>{THEMES.find(t => t.id === assessment.theme)?.icon}</span>
+                <span>{THEMES.find(t => t.id === assessment.theme)?.name}</span>
+              </span>
+            </div>
+
             <div className="text-center">
               <p className="text-sm text-white/50 mb-1">人格类型</p>
               <h2 className="text-2xl font-bold font-display bg-gradient-to-r from-indigo-400 to-pink-400 bg-clip-text text-transparent">
@@ -111,7 +133,21 @@ export default function ShareLanding() {
           </div>
         )}
 
-        <button onClick={handleStart} className="btn-primary w-full flex items-center justify-center gap-2">
+        {assessment && (
+          <button
+            onClick={handleSameTheme}
+            className="btn-primary w-full flex items-center justify-center gap-2"
+            style={{
+              background: THEMES.find(t => t.id === assessment.theme)?.coverGradient
+            }}
+          >
+            <span>{THEMES.find(t => t.id === assessment.theme)?.icon}</span>
+            <span>测同款主题 · {THEMES.find(t => t.id === assessment.theme)?.name}</span>
+            <ArrowRight className="w-5 h-5" />
+          </button>
+        )}
+
+        <button onClick={handleStart} className="btn-secondary w-full flex items-center justify-center gap-2">
           <span>我也要测</span>
           <ArrowRight className="w-5 h-5" />
         </button>

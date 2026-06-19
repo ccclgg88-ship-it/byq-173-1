@@ -12,6 +12,7 @@ import {
 import { userApi, assessmentApi } from '@/api/client';
 import { useAppStore } from '@/store/useAppStore';
 import type { ShareStats, PersonaResult } from '../../shared/types';
+import { THEMES, type ThemeId } from '../../shared/types';
 
 const EMOJI_AVATARS = ['🦊', '🐼', '🦁', '🐯', '🐸', '🐵', '🦄', '🐙', '🦋', '🌸'];
 
@@ -23,6 +24,7 @@ export default function Profile() {
   const [assessments, setAssessments] = useState<PersonaResult[]>([]);
   const [loadingStats, setLoadingStats] = useState(true);
   const [loadingAssessments, setLoadingAssessments] = useState(true);
+  const [selectedTheme, setSelectedTheme] = useState<ThemeId | 'all'>('all');
 
   const loadShareStats = useCallback(async () => {
     if (!currentUser) return;
@@ -37,11 +39,11 @@ export default function Profile() {
     }
   }, [currentUser]);
 
-  const loadAssessments = useCallback(async () => {
+  const loadAssessments = useCallback(async (theme?: ThemeId) => {
     if (!currentUser) return;
     try {
       setLoadingAssessments(true);
-      const data = await assessmentApi.getByUser(currentUser.id);
+      const data = await assessmentApi.getByUser(currentUser.id, theme);
       setAssessments(data);
     } catch (err) {
       console.error('加载测评历史失败:', err);
@@ -56,8 +58,12 @@ export default function Profile() {
       return;
     }
     loadShareStats();
-    loadAssessments();
-  }, [currentUser, navigate, loadShareStats, loadAssessments]);
+    loadAssessments(selectedTheme === 'all' ? undefined : selectedTheme);
+  }, [currentUser, navigate, loadShareStats, loadAssessments, selectedTheme]);
+
+  const handleThemeChange = (theme: ThemeId | 'all') => {
+    setSelectedTheme(theme);
+  };
 
   const handleHome = () => {
     navigate('/');
@@ -173,6 +179,32 @@ export default function Profile() {
           <h3 className="font-bold text-white">我的测评</h3>
         </div>
 
+        <div className="flex gap-2 mb-4 overflow-x-auto pb-1">
+          <button
+            onClick={() => handleThemeChange('all')}
+            className={`px-3 py-1.5 rounded-full text-xs font-medium whitespace-nowrap transition-colors ${
+              selectedTheme === 'all'
+                ? 'bg-indigo-500 text-white'
+                : 'bg-white/10 text-white/60 hover:bg-white/15'
+            }`}
+          >
+            全部
+          </button>
+          {THEMES.map((t) => (
+            <button
+              key={t.id}
+              onClick={() => handleThemeChange(t.id)}
+              className={`px-3 py-1.5 rounded-full text-xs font-medium whitespace-nowrap transition-colors ${
+                selectedTheme === t.id
+                  ? 'bg-indigo-500 text-white'
+                  : 'bg-white/10 text-white/60 hover:bg-white/15'
+              }`}
+            >
+              {t.icon} {t.name}
+            </button>
+          ))}
+        </div>
+
         {loadingAssessments ? (
           <div className="flex items-center justify-center py-8">
             <Loader2 className="w-6 h-6 animate-spin text-white/60" />
@@ -195,9 +227,19 @@ export default function Profile() {
                 </div>
                 <div className="flex-1 min-w-0">
                   <p className="text-white font-medium truncate">{item.title}</p>
-                  <p className="text-white/40 text-xs mt-1">
-                    {formatDate(item.createdAt)}
-                  </p>
+                  <div className="flex items-center gap-2 mt-1">
+                    <p className="text-white/40 text-xs">{formatDate(item.createdAt)}</p>
+                    {(() => {
+                      const themeInfo = THEMES.find((t) => t.id === item.theme);
+                      if (!themeInfo) return null;
+                      return (
+                        <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full bg-white/10 text-[10px] text-white/70">
+                          <span>{themeInfo.icon}</span>
+                          <span>{themeInfo.name}</span>
+                        </span>
+                      );
+                    })()}
+                  </div>
                 </div>
                 <ChevronRight className="w-5 h-5 text-white/30 flex-shrink-0" />
               </button>

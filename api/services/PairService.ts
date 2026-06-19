@@ -160,7 +160,10 @@ export function joinPairTask(
   }
 
   const recentAssessment = getRecentAssessment(partner.id, 7);
-  const partnerAssessment = recentAssessment || createAssessment(partner.id);
+  const inviterTheme = task.inviter_assessment_id
+    ? (db.prepare('SELECT theme FROM assessments WHERE id = ?').get(task.inviter_assessment_id) as any)?.theme || 'social'
+    : 'social';
+  const partnerAssessment = recentAssessment || createAssessment(partner.id, inviterTheme as import('../../shared/types').ThemeId);
 
   let partnerAssessmentId = partnerAssessment.id;
   let status: PairStatus = 'GENERATING';

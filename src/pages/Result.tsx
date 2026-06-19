@@ -9,12 +9,14 @@ import {
   Share2,
   Loader2,
   Sparkles,
-  Download
+  Download,
+  Info
 } from 'lucide-react';
 import html2canvas from 'html2canvas';
 import { assessmentApi, shareApi, pairApi } from '@/api/client';
 import { useAppStore } from '@/store/useAppStore';
-import type { PersonaResult, ShareGenerateResult } from '../../shared/types';
+import type { PersonaResult, ShareGenerateResult, RecentDuplicateCheck } from '../../shared/types';
+import { THEMES } from '../../shared/types';
 
 export default function Result() {
   const { id } = useParams<{ id: string }>();
@@ -23,6 +25,7 @@ export default function Result() {
 
   const [assessment, setAssessment] = useState<PersonaResult | null>(null);
   const [shareData, setShareData] = useState<ShareGenerateResult | null>(null);
+  const [duplicateCheck, setDuplicateCheck] = useState<RecentDuplicateCheck | null>(null);
   const [copied, setCopied] = useState(false);
   const [loading, setLoading] = useState(true);
   const [generatingShare, setGeneratingShare] = useState(false);
@@ -39,12 +42,20 @@ export default function Result() {
       const data = await assessmentApi.get(id);
       setAssessment(data);
       setCurrentAssessment(data);
+      if (currentUser) {
+        try {
+          const dup = await assessmentApi.checkDuplicate(currentUser.id, data.theme);
+          setDuplicateCheck(dup);
+        } catch {
+          setDuplicateCheck(null);
+        }
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : '加载失败');
     } finally {
       setLoading(false);
     }
-  }, [id, setCurrentAssessment]);
+  }, [id, currentUser, setCurrentAssessment]);
 
   const generateShare = useCallback(async () => {
     if (!currentUser || !assessment) return;
@@ -168,7 +179,25 @@ export default function Result() {
         <div className="w-10" />
       </div>
 
+      {duplicateCheck?.isDuplicate && (
+        <div className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-amber-500/15 border border-amber-500/20 mb-4">
+          <Info className="w-4 h-4 text-amber-400 flex-shrink-0" />
+          <p className="text-sm text-amber-300/90">
+            你刚刚在这个主题测过一次哦
+            {duplicateCheck.lastTitle && duplicateCheck.lastTitle !== assessment.title && (
+              <span className="text-amber-300/60">，上次你是「{duplicateCheck.lastTitle}」</span>
+            )}
+          </p>
+        </div>
+      )}
+
       <div className="glass-card-strong p-8 mb-6 text-center">
+        <div className="flex justify-center mb-3">
+          <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium bg-white/10 text-white/70">
+            <span>{THEMES.find(t => t.id === assessment.theme)?.icon}</span>
+            <span>{THEMES.find(t => t.id === assessment.theme)?.name}</span>
+          </span>
+        </div>
         <p className="text-white/60 text-sm mb-2">你的人设称号</p>
         <h2
           className="font-display font-bold text-4xl sm:text-5xl mb-6 leading-tight"
@@ -225,6 +254,13 @@ export default function Result() {
                   <span className="font-bold text-white/90 text-sm">人设实验室</span>
                 </div>
                 <span className="text-xs text-white/40">PERSONA LAB</span>
+              </div>
+
+              <div className="flex justify-center mb-3">
+                <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs bg-white/10 text-white/70">
+                  <span>{THEMES.find(t => t.id === assessment.theme)?.icon}</span>
+                  <span>{THEMES.find(t => t.id === assessment.theme)?.name}</span>
+                </span>
               </div>
 
               <div className="text-center mb-5">

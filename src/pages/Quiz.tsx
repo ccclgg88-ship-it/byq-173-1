@@ -1,12 +1,14 @@
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { ChevronRight, Loader2, Sparkles } from 'lucide-react';
-import type { QuizQuestion } from '../../shared/types';
+import type { QuizQuestion, ThemeId } from '../../shared/types';
+import { THEMES } from '../../shared/types';
 import { useAppStore } from '@/store/useAppStore';
 import { assessmentApi } from '@/api/client';
 
 export default function Quiz() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { currentUser, setCurrentAssessment } = useAppStore();
   const [questions, setQuestions] = useState<QuizQuestion[]>([]);
   const [currentIndex, setCurrentIndex] = useState(0);
@@ -15,17 +17,21 @@ export default function Quiz() {
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
 
+  const themeParam = searchParams.get('theme') as ThemeId | null;
+  const theme: ThemeId = THEMES.some((t) => t.id === themeParam) ? themeParam! : 'social';
+  const themeInfo = THEMES.find((t) => t.id === theme)!;
+
   useEffect(() => {
-    if (!currentUser) {
+    if (!currentUser || !themeParam) {
       navigate('/');
       return;
     }
     loadQuestions();
-  }, [currentUser, navigate]);
+  }, [currentUser, navigate, theme]);
 
   const loadQuestions = async () => {
     try {
-      const data = await assessmentApi.getQuestions();
+      const data = await assessmentApi.getQuestions(theme);
       setQuestions(data);
     } catch (error) {
       console.error(error);
@@ -54,7 +60,7 @@ export default function Quiz() {
     if (!currentUser) return;
     setSubmitting(true);
     try {
-      const result = await assessmentApi.create(currentUser.id);
+      const result = await assessmentApi.create(currentUser.id, theme);
       setCurrentAssessment(result);
       navigate(`/result/${result.id}`);
     } catch (error) {
@@ -99,6 +105,10 @@ export default function Quiz() {
       <div className="relative z-10 min-h-screen flex flex-col px-5 py-8">
         <div className="w-full max-w-lg mx-auto mb-8">
           <div className="glass-card p-4">
+            <div className="flex items-center gap-3 mb-3">
+              <span className="text-xl">{themeInfo.icon}</span>
+              <span className="text-sm font-medium text-white/90">{themeInfo.name}</span>
+            </div>
             <div className="flex items-center justify-between mb-3">
               <span className="text-sm text-white/70">
                 第 {currentIndex + 1} / {questions.length} 题

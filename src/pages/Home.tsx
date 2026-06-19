@@ -22,7 +22,7 @@ export default function Home() {
         user = await userApi.create(nickname.trim(), avatar);
       }
       setCurrentUser(user);
-      navigate('/quiz');
+      navigate('/themes');
     } catch (error) {
       console.error(error);
     } finally {

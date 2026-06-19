@@ -5,7 +5,9 @@ import type {
   ShareGenerateResult,
   ReferralRecordResult,
   PairTaskDetail,
-  QuizQuestion
+  QuizQuestion,
+  ThemeId,
+  RecentDuplicateCheck
 } from '../../shared/types';
 
 const API_BASE = '/api';
@@ -36,14 +38,17 @@ export const userApi = {
 };
 
 export const assessmentApi = {
-  getQuestions: () => request<QuizQuestion[]>('/assessments/questions'),
-  create: (userId: string) =>
-    request<PersonaResult>('/assessments', {
+  getQuestions: (theme: ThemeId) => request<QuizQuestion[]>(`/assessments/questions?theme=${theme}`),
+  create: (userId: string, theme: ThemeId) =>
+    request<PersonaResult & { duplicateCheck: RecentDuplicateCheck }>('/assessments', {
       method: 'POST',
-      body: JSON.stringify({ userId })
+      body: JSON.stringify({ userId, theme })
     }),
   get: (id: string) => request<PersonaResult>(`/assessments/${id}`),
-  getByUser: (userId: string) => request<PersonaResult[]>(`/assessments/user/${userId}`)
+  getByUser: (userId: string, theme?: ThemeId) =>
+    request<PersonaResult[]>(`/assessments/user/${userId}${theme ? `?theme=${theme}` : ''}`),
+  checkDuplicate: (userId: string, theme: ThemeId) =>
+    request<RecentDuplicateCheck>(`/assessments/duplicate-check?userId=${encodeURIComponent(userId)}&theme=${theme}`)
 };
 
 export const shareApi = {

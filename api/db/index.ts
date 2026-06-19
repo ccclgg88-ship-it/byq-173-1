@@ -26,17 +26,6 @@ export function initDatabase() {
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP
     );
 
-    CREATE TABLE IF NOT EXISTS assessments (
-      id TEXT PRIMARY KEY,
-      user_id TEXT NOT NULL REFERENCES users(id),
-      persona_title TEXT NOT NULL,
-      persona_tags TEXT NOT NULL,
-      persona_description TEXT NOT NULL,
-      created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-    );
-    CREATE INDEX IF NOT EXISTS idx_assessments_user_id ON assessments(user_id);
-    CREATE INDEX IF NOT EXISTS idx_assessments_created_at ON assessments(created_at);
-
     CREATE TABLE IF NOT EXISTS referrals (
       id TEXT PRIMARY KEY,
       sharer_id TEXT NOT NULL REFERENCES users(id),
@@ -69,6 +58,31 @@ export function initDatabase() {
     CREATE INDEX IF NOT EXISTS idx_pair_tasks_status ON pair_tasks(status);
     CREATE INDEX IF NOT EXISTS idx_pair_tasks_expires ON pair_tasks(expires_at);
   `);
+
+  const tableCheck = db.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='assessments'").get();
+  if (!tableCheck) {
+    db.exec(`
+      CREATE TABLE assessments (
+        id TEXT PRIMARY KEY,
+        user_id TEXT NOT NULL REFERENCES users(id),
+        theme TEXT NOT NULL DEFAULT 'social',
+        persona_title TEXT NOT NULL,
+        persona_tags TEXT NOT NULL,
+        persona_description TEXT NOT NULL,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+      );
+      CREATE INDEX idx_assessments_user_id ON assessments(user_id);
+      CREATE INDEX idx_assessments_created_at ON assessments(created_at);
+      CREATE INDEX idx_assessments_theme ON assessments(theme);
+    `);
+  } else {
+    const colCheck = db.prepare("PRAGMA table_info(assessments)").all() as any[];
+    const hasTheme = colCheck.some(col => col.name === 'theme');
+    if (!hasTheme) {
+      db.exec(`ALTER TABLE assessments ADD COLUMN theme TEXT NOT NULL DEFAULT 'social'`);
+      db.exec(`CREATE INDEX IF NOT EXISTS idx_assessments_theme ON assessments(theme)`);
+    }
+  }
 }
 
 export default db;
